@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetris Clone</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        #game-board {
+            border: 2px solid #333;
+            background-color: #111;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="game-board" width="300" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('game-board');
+        const ctx = canvas.getContext('2d');
+        const scale = 30;
+        const rows = 20;
+        const cols = 10;
+
+        // Tetromino shapes
+        const shapes = [
+            [[1, 1, 1, 1]],
+            [[1, 1], [1, 1]],
+            [[1, 1, 1], [0, 1, 0]],
+            [[1, 1, 1], [1, 0, 0]],
+            [[1, 1, 1], [0, 0, 1]],
+            [[1, 1, 0], [0, 1, 1]],
+            [[0, 1, 1], [1, 1, 0]]
+        ];
+
+        // Colors for each shape
+        const colors = [
+            '#FF0D72', '#0DC2FF', '#0DFF72',
+            '#F538FF', '#FF8E0D', '#FFE138', '#3877FF'
+        ];
+
+        let board = Array(rows).fill().map(() => Array(cols).fill(0));
+        let currentPiece = null;
+        let currentPos = {x: 0, y: 0};
+
+        function createPiece() {
+            const shapeIndex = Math.floor(Math.random() * shapes.length);
+            return {
+                shape: shapes[shapeIndex],
+                color: colors[shapeIndex],
+                x: Math.floor(cols / 2) - Math.floor(shapes[shapeIndex][0].length / 2),
+                y: 0
+            };
+        }
+
+        function drawBoard() {
+            board.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value) {
+                        ctx.fillStyle = value;
+                        ctx.fillRect(x * scale, y * scale, scale, scale);
+                        ctx.strokeStyle = '#111';
+                        ctx.strokeRect(x * scale, y * scale, scale, scale);
+                    }
+                });
+            });
+        }
+
+        function drawPiece() {
+            currentPiece.shape.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value) {
+                        ctx.fillStyle = currentPiece.color;
+                        ctx.fillRect((currentPiece.x + x) * scale, (currentPiece.y + y) * scale, scale, scale);
+                        ctx.strokeStyle = '#111';
+                        ctx.strokeRect((currentPiece.x + x) * scale, (currentPiece.y + y) * scale, scale, scale);
+                    }
+                });
+            });
+        }
+
+        function merge() {
+            currentPiece.shape.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value) {
+                        board[currentPiece.y + y][currentPiece.x + x] = currentPiece.color;
+                    }
+                });
+            });
+        }
+
+        function collision() {
+            return currentPiece.shape.some((row, y) => {
+                return row.some((value, x) => {
+                    if (value) {
+                        const boardX = currentPiece.x + x;
+                        const boardY = currentPiece.y + y;
+                        return boardX < 0 || boardX >= cols || boardY >= rows || (boardY >= 0 && board[boardY][boardX]);
+                    }
+                    return false;
+                });
+            });
+        }
+
+        function rotate() {
+            const rotated = currentPiece.shape[0].map((_, i) =>
+                currentPiece.shape.map(row => row[i]).reverse()
+            );
+            const prevShape = currentPiece.shape;
+            currentPiece.shape = rotated;
+            if (collision()) {
+                currentPiece.shape = prevShape;
+            }
+        }
+
+        function clearLines() {
+            let linesCleared = 0;
+            outer: for (let y = rows - 1; y >= 0; y--) {
+                for (let x = 0; x < cols; x++) {
+                    if (!board[y][x]) continue outer;
+                }
+                board.splice(y, 1);
+                board.unshift(Array(cols).fill(0));
+                linesCleared++;
+            }
+            return linesCleared;
+        }
+
+        function update() {
+            currentPiece.y++;
+            if (collision()) {
+                currentPiece.y--;
+                merge();
+                clearLines();
+                currentPiece = createPiece();
+                if (collision()) {
+                    // Game over
+                    board = Array(rows).fill().map(() => Array(cols).fill(0));
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBoard();
+            drawPiece();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowLeft':
+                    currentPiece.x--;
+                    if (collision()) currentPiece.x++;
+                    break;
+                case 'ArrowRight':
+                    currentPiece.x++;
+                    if (collision()) currentPiece.x--;
+                    break;
+                case 'ArrowDown':
+                    currentPiece.y++;
+                    if (collision()) currentPiece.y--;
+                    break;
+                case 'ArrowUp':
+                    rotate();
+                    break;
+            }
+        });
+
+        currentPiece = createPiece();
+        setInterval(gameLoop, 500);
+    </script>
+</body>
+</html>
